@@ -181,15 +181,15 @@ func checkEnvAccess(command string) bool {
 
 	cmdLower := strings.ToLower(command)
 
-	// Check if command starts with one of the env commands
+	// Check if command is exactly one of the env commands
 	for _, envCmd := range envCommands {
-		if strings.HasPrefix(cmdLower, envCmd+" ") {
+		if strings.HasPrefix(cmdLower, envCmd+" ") || cmdLower == envCmd {
 			return true
 		}
 	}
 
 	// Check for grep/awk/sed parsing environment variables with secret-related keywords
-	secretKeywords := []string{"api", "key", "passwd", "secret", "token", "credential", "auth"}
+	secretKeywords := []string{"api", "key", "password", "secret", "token", "credential", "auth"}
 	if strings.Contains(cmdLower, "grep") || strings.Contains(cmdLower, "awk") || strings.Contains(cmdLower, "sed") {
 		for _, keyword := range secretKeywords {
 			if strings.Contains(cmdLower, keyword) {
@@ -211,7 +211,7 @@ func checkEnvAccess(command string) bool {
 		// Node.js: process.env
 		"process.env",
 		// Ruby: ENV[
-		"ENV[",
+		"env[",
 		// awk ENVIRON array
 		"environ[",
 	}
