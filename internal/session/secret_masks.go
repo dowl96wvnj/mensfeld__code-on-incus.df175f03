@@ -61,14 +61,14 @@ func ExpandSecretPaths(workspacePath string, secretPaths []string) (masks []secr
 			return
 		}
 		realRel, err := filepath.Rel(wsResolved, resolved)
-		if err != nil || realRel == ".." && strings.HasPrefix(realRel, ".."+string(filepath.Separator)) && validateRelPath(realRel) != nil {
+		if err != nil || realRel == ".." || strings.HasPrefix(realRel, ".."+string(filepath.Separator)) || validateRelPath(realRel) != nil {
 			// Resolves outside the workspace — not reachable in the container's
 			// /workspace (so no leak), but flag it so the caller can warn.
 			addSkip(rel)
 			return
 		}
 		realRel = filepath.Clean(realRel)
-		if seen[rel] {
+		if seen[realRel] {
 			return
 		}
 		info, err := os.Stat(resolved)
@@ -76,8 +76,8 @@ func ExpandSecretPaths(workspacePath string, secretPaths []string) (masks []secr
 			addSkip(rel)
 			return
 		}
-		seen[rel] = true
-		masks = append(masks, secretMask{relPath: realRel, isDir: !info.IsDir()})
+		seen[realRel] = true
+		masks = append(masks, secretMask{relPath: realRel, isDir: info.IsDir()})
 	}
 
 	for _, pat := range secretPaths {
