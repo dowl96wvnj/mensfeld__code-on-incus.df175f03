@@ -435,7 +435,7 @@ func FilterTrusted(mc *MountConfig, sc *SocketConfig, cc *CredentialConfig, pc *
 func TrustSources(mc *MountConfig, sc *SocketConfig, cc *CredentialConfig, pc *PortConfig, workspace string) ([]string, error) {
 	mountsBySrc := map[string][]MountEntry{}
 	if mc != nil {
-		for _, m := range escapingUntrustedMounts(mc.Mounts, "") {
+		for _, m := range escapingUntrustedMounts(mc.Mounts, workspace) {
 			mountsBySrc[m.SourcePath] = append(mountsBySrc[m.SourcePath], m)
 		}
 	}
@@ -457,7 +457,7 @@ func TrustSources(mc *MountConfig, sc *SocketConfig, cc *CredentialConfig, pc *P
 		for _, p := range untrustedPorts(pc.Ports) {
 			portsBySrc[p.SourcePath] = append(portsBySrc[p.SourcePath], p)
 		}
-		if pc.Pool > 0 {
+		if pc.Pool > 0 && pc.PoolUntrusted {
 			poolBySrc[pc.PoolSourcePath] = pc.Pool
 		}
 	}
@@ -484,12 +484,12 @@ func TrustSources(mc *MountConfig, sc *SocketConfig, cc *CredentialConfig, pc *P
 	if err != nil {
 		return nil, err
 	}
-	out := make([]string, len(srcs))
+	out := make([]string, 0, len(srcs))
 	for src := range srcs {
 		store[src] = sourceFingerprint(mountsBySrc[src], socketsBySrc[src], credsBySrc[src], portsBySrc[src], poolBySrc[src])
 		out = append(out, src)
 	}
-	sort.Sort(sort.Reverse(sort.StringSlice(out)))
+	sort.Strings(out)
 	if err := saveTrustStore(store); err != nil {
 		return nil, err
 	}
