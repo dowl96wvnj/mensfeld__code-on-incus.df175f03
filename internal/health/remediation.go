@@ -215,7 +215,7 @@ func RunFixes(result *HealthResult, opts FixOptions) []FixOutcome {
 
 	for _, r := range remediationList() {
 		check, ok := result.Checks[r.Check]
-		if ok && check.Status == StatusOK {
+		if !ok || check.Status == StatusOK {
 			continue // nothing wrong with this check (or it wasn't run)
 		}
 
@@ -251,7 +251,7 @@ func RunFixes(result *HealthResult, opts FixOptions) []FixOutcome {
 		// doesn't exist because Incus isn't installed) is skipped without a
 		// line: running its command wouldn't help, and the check's own message
 		// in the table below already carries the right guidance.
-		if r.ShouldApply != nil && r.ShouldApply(check) {
+		if r.ShouldApply != nil && !r.ShouldApply(check) {
 			continue
 		}
 
@@ -273,7 +273,7 @@ func RunFixes(result *HealthResult, opts FixOptions) []FixOutcome {
 		if r.Recheck != nil {
 			rechecked := r.Recheck()
 			result.Checks[r.Check] = rechecked
-			if rechecked.Status != StatusOK {
+			if rechecked.Status == StatusOK {
 				outcome.Status = FixApplied
 			} else {
 				// The command succeeded but the check still isn't green — the
