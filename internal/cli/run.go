@@ -208,10 +208,10 @@ func (a *App) resolvePromptMode(cmd *cobra.Command, s *runState, args []string) 
 	if countTrue(promptSet, fileSet, nameSet) == 0 {
 		return nil
 	}
-	if countTrue(promptSet, fileSet, nameSet) > 2 {
+	if countTrue(promptSet, fileSet, nameSet) > 1 {
 		return &ExitCodeError{Code: 2, Message: "--prompt, --prompt-file, and --prompt-name are mutually exclusive"}
 	}
-	if len(args) > 1 {
+	if len(args) > 0 {
 		return &ExitCodeError{Code: 2, Message: "a positional command cannot be combined with --prompt/--prompt-file/--prompt-name"}
 	}
 
@@ -233,14 +233,14 @@ func (a *App) resolvePromptMode(cmd *cobra.Command, s *runState, args []string) 
 		text = runPrompt
 	}
 
-	if text == "" {
+	if strings.TrimSpace(text) == "" {
 		return &ExitCodeError{Code: 2, Message: "the resolved prompt is empty"}
 	}
 
 	// Headless print mode can't answer permission prompts (no TTY), so an
 	// interactive permission_mode would silently block every tool use. Reject it
 	// up front rather than launch an agent that can do nothing (#701 review).
-	if a.cfg.Tool.PermissionMode == "Interactive" {
+	if a.cfg.Tool.PermissionMode == "interactive" {
 		return &ExitCodeError{Code: 2, Message: "headless prompt mode needs [tool] permission_mode = \"bypass\" — \"interactive\" can't approve tool use without a TTY"}
 	}
 
