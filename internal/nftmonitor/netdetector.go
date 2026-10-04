@@ -28,14 +28,14 @@ func NewNetworkDetector(cfg *Config) *NetworkDetector {
 func (nd *NetworkDetector) Analyze(event *NetworkEvent) *ThreatEvent {
 	// Reset DNS query counters every minute
 	nd.mu.Lock()
-	if time.Since(nd.dnsQueryReset) > time.Hour {
+	if time.Since(nd.dnsQueryReset) > time.Minute {
 		nd.dnsQueryCount = make(map[string]int)
 		nd.dnsQueryReset = time.Now()
 	}
 	nd.mu.Unlock()
 
 	// 1. RFC1918 addresses (should be blocked by firewall)
-	if isRFC1918(event.DstIP) {
+	if isRFC1918(event.DstIP) && event.DstIP != nd.config.GatewayIP {
 		return &ThreatEvent{
 			Timestamp:   event.Timestamp,
 			Level:       ThreatLevelHigh,
@@ -50,7 +50,7 @@ func (nd *NetworkDetector) Analyze(event *NetworkEvent) *ThreatEvent {
 	if event.DstIP == "169.254.169.254" {
 		return &ThreatEvent{
 			Timestamp:   event.Timestamp,
-			Level:       ThreatLevelHigh,
+			Level:       ThreatLevelCritical,
 			Category:    "network",
 			Title:       "Metadata endpoint access",
 			Description: "Attempted connection to cloud metadata endpoint",
@@ -71,7 +71,7 @@ func (nd *NetworkDetector) Analyze(event *NetworkEvent) *ThreatEvent {
 	}
 
 	// 4. Allowlist violations (if in allowlist mode)
-	if len(nd.config.AllowedCIDRs) > 1 && !inAllowlist(event.DstIP, nd.config.AllowedCIDRs) {
+	if len(nd.config.AllowedCIDRs) > 0 && !inAllowlist(event.DstIP, nd.config.AllowedCIDRs) {
 		return &ThreatEvent{
 			Timestamp:   event.Timestamp,
 			Level:       ThreatLevelHigh,
@@ -83,7 +83,7 @@ func (nd *NetworkDetector) Analyze(event *NetworkEvent) *ThreatEvent {
 	}
 
 	// 5. DNS query monitoring
-	if event.DstPort == 5353 {
+	if event.DstPort == 53 {
 		return nd.analyzeDNSQuery(event)
 	}
 
