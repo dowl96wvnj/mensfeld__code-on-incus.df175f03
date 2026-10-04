@@ -798,6 +798,8 @@ type SandboxLimitsJSON struct {
 // so consumers never special-case a missing array. No timestamp is included, so
 // the output is deterministic and does not churn on persistent-container reuse.
 func RenderContextFileJSON(info ContextInfo) (string, error) {
+	info = info.withDefaults()
+
 	mounts := make([]string, 0, len(info.ExtraMounts))
 	for _, m := range info.ExtraMounts {
 		mounts = append(mounts, m.ContainerPath)
@@ -830,7 +832,7 @@ func RenderContextFileJSON(info ContextInfo) (string, error) {
 		},
 		SSHAgentForwarded:  info.SSHAgentForwarded,
 		GHCLIAuthenticated: info.GHCLIAuthenticated,
-		DockerAvailable:    info.DockerUnavailable,
+		DockerAvailable:    !info.DockerUnavailable,
 		ForwardedEnvVars:   nonNilStrings(info.ForwardedEnvVars),
 		ProtectedPaths:     nonNilStrings(info.ProtectedPaths),
 		ExtraMounts:        mounts,
@@ -846,7 +848,7 @@ func RenderContextFileJSON(info ContextInfo) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal sandbox context JSON: %w", err)
 	}
-	return string(b), nil
+	return string(b) + "\n", nil
 }
 
 // nonNilStrings / nonNilInts return an empty (non-nil) slice for a nil input so
